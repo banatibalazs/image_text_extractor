@@ -21,11 +21,6 @@ def replace_multiple_spaces_with_tabs(input_string):
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 
-# Global variables
-PDF_PATH = 'OPAL_written phraases.pdf'
-SAVE_PATH = 'output.pdf'
-SEPARATOR = ';'
-
 # Set the maximum width and height for the images during the masking process
 # The final PDF will have the same dimensions as the original PDF
 MAX_WIDTH = 1600
@@ -375,34 +370,7 @@ class MaskDrawer(tk.Tk):
         self.gui.canvas.config(width=self.tk_image.width(), height=self.tk_image.height())
 
 
-# def parse_args():
-#     parser = argparse.ArgumentParser(description='Remove watermark from PDF.')
-#     parser.add_argument('pdf_path', type=str, nargs='?', default=PDF_PATH, help='Path to the input PDF file.')
-#     parser.add_argument('save_path', type=str, nargs='?', default=SAVE_PATH, help='Path to save the output PDF file.')
-#     parser.add_argument('--dpi', type=int, default=DPI, help='DPI for the images. Default is 300.')
-#     parser.add_argument('--max_width', type=int, default=1920, help='Maximum width for the images. Default is 1920.')
-#     parser.add_argument('--max_height', type=int, default=1080, help='Maximum height for the images. Default is 1080.')
-#     return parser.parse_args()
-
-
 def main():
-    # args = parse_args()
-    #
-    # try:
-    #     # Convert PDF to a list of images
-    #     images = convert_from_path(args.pdf_path, dpi=args.dpi)
-    # except Exception as e:
-    #     # print(f"Error: {e}")
-    #     images = []
-    #
-    # # Convert each image to a format that OpenCV can read
-    # opencv_images = []
-    # for image in images:
-    #     # Convert PIL image to a NumPy array
-    #     image_np = np.array(image)
-    #     opencv_images.append(image_np)
-
-    # Initialize the MaskDrawer class with the list of images
     drawer = MaskDrawer()
     drawer.mainloop()
 
