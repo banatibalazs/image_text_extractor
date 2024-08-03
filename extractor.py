@@ -8,6 +8,12 @@ import pytesseract
 import os
 from pdf2image import convert_from_path
 import re
+from enum import Enum
+
+
+class Language(Enum):
+    ENGLISH = 'eng'
+    HUNGARIAN = 'hun'
 
 
 def replace_multiple_spaces_with_tabs(input_string):
@@ -25,16 +31,19 @@ def analyze(image, lang):
     # Read the image
     # image = np.array(image)
 
+    # Convert the image to grayscale
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     # Apply a blur to the image (optional)
     blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
+    # cv2.imshow('blurred', blurred_image)
+
     # Apply thresholding to the image
     _, thresholded_image = cv2.threshold(blurred_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     # config = r'--oem 3 --psm 6'
     config = r'--oem 3 --psm 6 -c preserve_interword_spaces=1'
 
-    extracted_text = pytesseract.image_to_string(thresholded_image, lang=lang, config=config)
+    extracted_text = pytesseract.image_to_string(thresholded_image, lang=lang.value, config=config)
     return extracted_text
 
 
@@ -52,9 +61,17 @@ def crop_masked_image(image, mask):
     # Crop the image using the bounding box
     cropped_im = result[y:y+h, x:x+w]
     cropped_mask = mask[y:y+h, x:x+w]
-    inverted_mask = cv2.bitwise_not(cropped_mask)
-    cropped_im = cv2.bitwise_or(cropped_im, inverted_mask)
 
+    # most common color
+    color = np.median(cropped_im, axis=(0, 1))
+
+    inverted_mask = cv2.bitwise_not(cropped_mask)
+    # fill mask with most common color
+    mcc_mask = np.full_like(cropped_im, color)
+    final_mask = cv2.bitwise_and(mcc_mask, inverted_mask)
+    cropped_im = cv2.bitwise_or(cropped_im, final_mask)
+
+    print(cropped_im.shape)
     return cropped_im
 
 
@@ -64,7 +81,7 @@ class MaskDrawerGUI:
         self.images = images
         self.current_page_index = 0
         self.current_image = self.images[self.current_page_index].copy()
-        self.languages = ['eng', 'hun']
+        self.languages = [Language.ENGLISH, Language.HUNGARIAN]
         self.drawing_mode = 'rectangle'
         self.drawing_modes = ['free', 'rectangle']
         self.initialize_gui()
@@ -94,6 +111,11 @@ class MaskDrawerGUI:
                                              command=self.master.open_folder_dialog)
         self.button_open_folder.config(width=40)
         self.button_open_folder.pack()
+        self.button_rotate = ttk.Button(self.load_and_settings_frame, text="Rotate 90 degrees",
+                                        command=self.master.rotate_current_image_by_90_degrees)
+        self.button_rotate.config(width=40)
+        self.button_rotate.pack()
+
         self.next_button = ttk.Button(self.page_turn_frame, text="Next Image", command=self.master.next_image)
         self.next_button.config(width=17)
         self.next_button.pack(side="right")
@@ -112,8 +134,8 @@ class MaskDrawerGUI:
 
     def initialize_menus(self):
         self.lang_var = tk.StringVar(self.load_and_settings_frame)
-        self.lang_var.set('eng')
-        self.lang_menu = ttk.OptionMenu(self.load_and_settings_frame, self.lang_var, *self.languages)
+        self.lang_var.set(Language.ENGLISH.value)
+        self.lang_menu = ttk.OptionMenu(self.load_and_settings_frame, self.lang_var, Language.ENGLISH.value, *[lang.value for lang in self.languages])
         self.lang_menu.config(width=10)
         self.lang_menu.pack()
         self.drawing_mode_var = tk.StringVar(self.load_and_settings_frame)
@@ -171,17 +193,17 @@ def save_to_text_file(text):
 class MaskDrawer(tk.Tk):
     def __init__(self, images=[]):
         super().__init__()
+        self.current_page_index = 0
         if images is None or len(images) == 0:
             self.images = [np.full((250, 250, 3), 255, np.uint8)]
-            self.original_height, self.original_width = self.images[0].shape[:2]
+            self.original_shapes = [image.shape for image in self.images]
             self.resized_images = [self.resize_image(image, 2, 2) for image in self.images]
         else:
             self.images = images
-            self.original_height, self.original_width = self.images[0].shape[:2]
+            self.original_shapes = [image.shape for image in self.images]
             self.resized_images = [self.resize_image(image) for image in self.images]
-        self.current_page_index = 0
         self.current_image = self.resized_images[self.current_page_index].copy()
-        mask = np.zeros((self.original_width, self.original_height), np.uint8)
+        mask = np.zeros((self.current_image.shape[0:2]), np.uint8)
         self.mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
 
         self.drawing = False
@@ -198,13 +220,13 @@ class MaskDrawer(tk.Tk):
             return None
 
         # Calculate the ratios of the new width and height to the old width and height
-        width_ratio = width / float(self.original_width)
-        height_ratio = height / float(self.original_height)
+        width_ratio = width / float(self.original_shapes[self.current_page_index][1])
+        height_ratio = height / float(self.original_shapes[self.current_page_index][0])
         # Choose the smallest ratio
         ratio = min(width_ratio, height_ratio)
         # Calculate the new dimensions
-        new_width = int(self.original_width * ratio)
-        new_height = int(self.original_height * ratio)
+        new_width = int(self.original_shapes[self.current_page_index][1] * ratio)
+        new_height = int(self.original_shapes[self.current_page_index][0] * ratio)
         # Resize the image
         return cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_AREA)
 
@@ -219,7 +241,7 @@ class MaskDrawer(tk.Tk):
                 # Open the PDF file
                 images = convert_from_path(file_path, dpi=400)
                 self.images = [np.array(image) for image in images]
-                self.original_height, self.original_width = self.images[0].shape[:2]
+                self.original_shapes = [image.shape for image in self.images]
                 self.resized_images = [self.resize_image(image) for image in self.images]
                 self.current_page_index = 0
                 self.current_image = self.resized_images[self.current_page_index].copy()
@@ -268,8 +290,7 @@ class MaskDrawer(tk.Tk):
                 self.rect_id = self.gui.canvas.create_rectangle(self.ix, self.iy, event.x, event.y, outline='black')
 
     def stop_draw(self, event):
-        width, height = (self.resized_images[self.current_page_index].shape[1],
-                         self.resized_images[self.current_page_index].shape[0])
+        width, height = self.current_image.shape[1], self.current_image.shape[0]
         mask = np.zeros((height, width), np.uint8)
         self.drawing = False
         if self.gui.drawing_mode == 'free':
@@ -277,23 +298,22 @@ class MaskDrawer(tk.Tk):
             pts = np.array(self.points, dtype=np.int32).reshape((-1, 1, 2))
             cv2.fillPoly(mask, [pts], (255, 255, 255))
             self.points.clear()
-
         elif self.gui.drawing_mode == 'rectangle':
             if self.rect_id:
                 self.gui.canvas.delete(self.rect_id)
             self.rect_id = self.gui.canvas.create_rectangle(self.ix, self.iy, event.x, event.y, outline='black',
                                                         fill='gray')
             cv2.rectangle(mask, (self.ix, self.iy), (event.x, event.y), (255), thickness=-1)
-
-        # Create a new image for the mask
         mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+
+        print('Mask shape: ',mask.shape)
+        print('Current image shape: ', self.current_image.shape)
+
         weighted_image = cv2.addWeighted(self.current_image, 0.7, mask, 0.3, 0)
         self.update_image(weighted_image)
-
-        mask = self.resize_image(mask, self.original_height, self.original_width)
+        mask = self.resize_image(mask, *self.original_shapes[self.current_page_index][0:2])
         cropped_image = crop_masked_image(self.images[self.current_page_index], mask)
-
-        self.extracted_text = analyze(cropped_image, self.gui.lang_var.get())
+        self.extracted_text = analyze(cropped_image, Language(self.gui.lang_var.get()))
         self.copy_text()
 
     def load_text_file_dialog(self):
@@ -318,10 +338,12 @@ class MaskDrawer(tk.Tk):
                     image_path = os.path.join(folder_path, filename)
                     image = cv2.imread(image_path)
                     if image is not None:
+                        # change color space to RGB
+                        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                         images.append(image)
             if images:
                 self.images = images
-                self.original_height, self.original_width = self.images[0].shape[:2]
+                self.original_shapes = [image.shape for image in self.images]
                 self.resized_images = [self.resize_image(image) for image in self.images]
                 self.current_page_index = 0
                 self.current_image = self.resized_images[self.current_page_index].copy()
@@ -341,6 +363,22 @@ class MaskDrawer(tk.Tk):
         # Insert a new line into text_field2
         self.gui.text_field.insert(tk.END, '\n')
 
+    def rotate_current_image_by_90_degrees(self):
+        # Rotate the current image by 90 degrees
+        self.current_image = np.rot90(self.current_image)
+        # print(self.current_image.shape)
+        self.resized_images[self.current_page_index] = self.current_image.copy()
+        # print(self.resized_images[self.current_page_index].shape)
+        self.images[self.current_page_index] = np.rot90(self.images[self.current_page_index])
+        self.original_shapes[self.current_page_index] = self.images[self.current_page_index].shape
+        # print(self.original_shapes[self.current_page_index])
+        # self.resized_images[self.current_page_index] = self.resize_image(self.images[self.current_page_index])
+        print('resized images current page shape: ' , self.resized_images[self.current_page_index].shape)
+        self.update_image(self.current_image)
+
+        # self.gui.update_image(self.current_image)
+
+
     def copy_text(self):
         text = self.extracted_text
         text = text.replace('\n\n', '\n')
@@ -353,12 +391,12 @@ class MaskDrawer(tk.Tk):
             print("Warning: Attempted to update the image with a None image.")
             return
         # Convert the new image to a format that Tkinter can display
-        self.tk_image = ImageTk.PhotoImage(Image.fromarray(new_image))
+        self.gui.tk_image = ImageTk.PhotoImage(Image.fromarray(new_image))
         # Delete the current image from the canvas
         self.gui.canvas.delete(self.gui.image_id)
         # Display the new image on the canvas and update the ID of the image
-        self.image_id = self.gui.canvas.create_image(0, 0, image=self.tk_image, anchor="nw")
-        self.gui.canvas.config(width=self.tk_image.width(), height=self.tk_image.height())
+        self.gui.image_id = self.gui.canvas.create_image(0, 0, image=self.gui.tk_image, anchor="nw")
+        self.gui.canvas.config(width=self.gui.tk_image.width(), height=self.gui.tk_image.height())
 
 
 def main():
