@@ -14,6 +14,8 @@ from enum import Enum
 class Language(Enum):
     ENGLISH = 'eng'
     HUNGARIAN = 'hun'
+    GERMAN = 'deu'
+    FRENCH = 'fra'
 
 
 def replace_multiple_spaces_with_tabs(input_string):
@@ -81,7 +83,7 @@ class MaskDrawerGUI:
         self.images = images
         self.current_page_index = 0
         self.current_image = self.images[self.current_page_index].copy()
-        self.languages = [Language.ENGLISH, Language.HUNGARIAN]
+        self.languages = [language for language in Language]
         self.drawing_mode = 'rectangle'
         self.drawing_modes = ['free', 'rectangle']
         self.initialize_gui()
