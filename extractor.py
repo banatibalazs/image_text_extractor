@@ -1,14 +1,11 @@
-from PIL import ImageDraw
 import numpy as np
 import cv2
-import argparse
 import tkinter as tk
 import tkinter.ttk as ttk
 import tkinter.filedialog
 from PIL import Image, ImageTk
 import pytesseract
 import os
-import csv
 from pdf2image import convert_from_path
 import re
 
@@ -21,14 +18,8 @@ def replace_multiple_spaces_with_tabs(input_string):
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 
-# Set the maximum width and height for the images during the masking process
-# The final PDF will have the same dimensions as the original PDF
 MAX_WIDTH = 1600
 MAX_HEIGHT = 1000
-
-# Set the DPI for the images, this affects the quality of the final PDF
-DPI = 300
-
 
 def analyze(image, lang):
     # Read the image
@@ -115,7 +106,7 @@ class MaskDrawerGUI:
         self.save_button = ttk.Button(self.frame3, text="Save text", command=self.master.save_text_to_file)
         self.save_button.config(width=20)
         self.save_button.pack(side="left")
-        self.load_text_button = ttk.Button(self.frame3, text="Load file", command=self.master.load_text_file_dialog)
+        self.load_text_button = ttk.Button(self.frame3, text="Load text", command=self.master.load_text_file_dialog)
         self.load_text_button.config(width=20)
         self.load_text_button.pack(side="right")
 
