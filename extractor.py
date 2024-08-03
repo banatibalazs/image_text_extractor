@@ -30,22 +30,18 @@ MAX_WIDTH = 1600
 MAX_HEIGHT = 1000
 
 def analyze(image, lang):
-    # Read the image
-    # image = np.array(image)
-
     # Convert the image to grayscale
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    # Apply a blur to the image (optional)
-    blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
-    # cv2.imshow('blurred', blurred_image)
-
     # Apply thresholding to the image
-    _, thresholded_image = cv2.threshold(blurred_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
+    _, thresholded_image = cv2.threshold(gray_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    # cv2.imshow('thresholded', thresholded_image)
     # config = r'--oem 3 --psm 6'
     config = r'--oem 3 --psm 6 -c preserve_interword_spaces=1'
-
-    extracted_text = pytesseract.image_to_string(thresholded_image, lang=lang.value, config=config)
+    try:
+        extracted_text = pytesseract.image_to_string(thresholded_image, lang=lang.value, config=config)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        extracted_text = ""
     return extracted_text
 
 
