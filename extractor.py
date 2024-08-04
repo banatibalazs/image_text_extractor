@@ -34,7 +34,7 @@ def analyze(image, lang):
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     # Apply thresholding to the image
     _, thresholded_image = cv2.threshold(gray_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    cv2.imshow('thresholded', thresholded_image)
+    # cv2.imshow('thresholded', thresholded_image)
     # config = r'--oem 3 --psm 6'
     config = r'--oem 3 --psm 6 -c preserve_interword_spaces=1'
     try:
