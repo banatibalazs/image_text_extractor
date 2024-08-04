@@ -10,7 +10,6 @@ from pdf2image import convert_from_path
 import re
 from enum import Enum
 
-
 class Language(Enum):
     ENGLISH = 'eng'
     HUNGARIAN = 'hun'
