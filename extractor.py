@@ -304,9 +304,6 @@ class MaskDrawer(tk.Tk):
             cv2.rectangle(mask, (self.ix, self.iy), (event.x, event.y), (255), thickness=-1)
         mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
 
-        print('Mask shape: ',mask.shape)
-        print('Current image shape: ', self.current_image.shape)
-
         weighted_image = cv2.addWeighted(self.current_image, 0.7, mask, 0.3, 0)
         self.update_image(weighted_image)
         mask = self.resize_image(mask, *self.original_shapes[self.current_page_index][0:2])
@@ -356,26 +353,16 @@ class MaskDrawer(tk.Tk):
         self.drawing_mode = self.gui.drawing_mode_var.get()
 
     def add_new_line(self, event=None):
-        # Delete the last character from text_field2
         self.gui.text_field.delete('end-2c', 'end-1c')
-        # Insert a new line into text_field2
         self.gui.text_field.insert(tk.END, '\n')
 
     def rotate_current_image_by_90_degrees(self):
         # Rotate the current image by 90 degrees
         self.current_image = np.rot90(self.current_image)
-        # print(self.current_image.shape)
         self.resized_images[self.current_page_index] = self.current_image.copy()
-        # print(self.resized_images[self.current_page_index].shape)
         self.images[self.current_page_index] = np.rot90(self.images[self.current_page_index])
         self.original_shapes[self.current_page_index] = self.images[self.current_page_index].shape
-        # print(self.original_shapes[self.current_page_index])
-        # self.resized_images[self.current_page_index] = self.resize_image(self.images[self.current_page_index])
-        print('resized images current page shape: ' , self.resized_images[self.current_page_index].shape)
         self.update_image(self.current_image)
-
-        # self.gui.update_image(self.current_image)
-
 
     def copy_text(self):
         text = self.extracted_text
